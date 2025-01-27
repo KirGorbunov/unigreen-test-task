@@ -1,9 +1,13 @@
-import os
-import aiohttp
 import asyncio
-from bs4 import BeautifulSoup
-# TODO Возможно!, заменить BeautifulSoup на lxml
 from datetime import datetime, timedelta
+import os
+
+import aiohttp
+from bs4 import BeautifulSoup
+
+
+# TODO Возможно!, заменить BeautifulSoup на lxml
+
 
 START_DATE = "20241002"
 END_DATE = "20241010"
@@ -12,7 +16,7 @@ BASE_URL = "https://www.atsenergo.ru/nreport"
 DIR_NAME = "reports"
 
 
-def generate_date_range(start_date: str, end_date: str) -> list:
+def generate_date_range(start_date: str, end_date: str) -> list[str]:
     start = datetime.strptime(start_date, "%Y%m%d")
     end = datetime.strptime(end_date, "%Y%m%d")
     delta = timedelta(days=1)
@@ -25,7 +29,7 @@ def generate_date_range(start_date: str, end_date: str) -> list:
     return dates
 
 
-async def get_download_link(session, BASE_URL: str, DATE: str, REGION: str) -> str:
+async def get_download_link(session: aiohttp.ClientSession, BASE_URL: str, DATE: str, REGION: str) -> str:
     url = f"{BASE_URL}?rname=big_nodes_prices_pub&region={REGION}&rdate={DATE}"
     async with session.get(url, ssl=False) as response:
         if response.status != 200:
@@ -49,7 +53,7 @@ async def get_download_link(session, BASE_URL: str, DATE: str, REGION: str) -> s
         return links[0]
 
 
-async def download_report(session, url: str, save_path: str) -> None:
+async def download_report(session: aiohttp.ClientSession, url: str, save_path: str) -> None:
     try:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         print(f"Скачивание отчёта с {url}...")
@@ -65,12 +69,12 @@ async def download_report(session, url: str, save_path: str) -> None:
         print(f"Ошибка при скачивании файла: {e}")
 
 
-async def get_one_report(session, BASE_URL, date, REGION, FILE_PATH):
+async def get_one_report(session: aiohttp.ClientSession, BASE_URL: str, date: str, REGION: str, FILE_PATH: str) -> None:
     report_url = await get_download_link(session, BASE_URL, date, REGION)
     await download_report(session, report_url, FILE_PATH)
 
 
-async def download_reports_for_dates():
+async def download_reports_for_dates() -> None:
     dates_to_download = generate_date_range(START_DATE, END_DATE)
 
     # Создаем сессию aiohttp
