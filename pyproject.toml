@@ -1,0 +1,40 @@
+[project]
+name = "unigreen-energy"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "KirGorbunov",email = "KirGorbunov@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests (>=2.32.3,<3.0.0)",
+    "bs4 (>=0.0.2,<0.0.3)",
+    "pandas (>=2.2.3,<3.0.0)"
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "ANN", "Q", "S"]
+ignore = ["S501"]
+
+[tool.ruff.lint.isort]
+order-by-type = true
+force-sort-within-sections = true
+combine-as-imports = true
+case-sensitive = false
+lines-after-imports = 2
+force-single-line = false
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.9.3"
+
