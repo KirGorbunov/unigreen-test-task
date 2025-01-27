@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import os
 
 from bs4 import BeautifulSoup
@@ -6,13 +7,23 @@ import urllib3
 
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-DATE = "20250125"
+START_DATE = "20241002"
+END_DATE = "20241010"
 REGION = "eur"
 BASE_URL = "https://www.atsenergo.ru/nreport"
 DIR_NAME = "reports"
-FILE_NAME = f"{DATE}.xlsx"
-FILE_PATH = f"{DIR_NAME}/{FILE_NAME}"
 
+
+def generate_date_range(start_date: str, end_date: str) -> list:
+    start = datetime.strptime(start_date, "%Y%m%d")
+    end = datetime.strptime(end_date, "%Y%m%d")
+    delta = timedelta(days=1)
+    dates = []
+    while start <= end:
+        dates.append(start.strftime("%Y%m%d"))
+        start += delta
+
+    return dates
 
 def get_download_link(BASE_URL: str, DATE: str, REGION: str) -> str:
     url = f"{BASE_URL}?rname=big_nodes_prices_pub&region={REGION}&rdate={DATE}"
@@ -51,5 +62,12 @@ def download_report(url: str, save_path: str) -> None:
         print(f"Ошибка при скачивании файла: {e}")
 
 
-report_url = get_download_link(BASE_URL, DATE, REGION)
-download_report(report_url, FILE_PATH)
+dates_to_download = generate_date_range(START_DATE, END_DATE)
+for date in dates_to_download:
+    FILE_NAME = f"{date}.xlsx"
+    FILE_PATH = f"{DIR_NAME}/{FILE_NAME}"
+    try:
+        report_url = get_download_link(BASE_URL, date, REGION)
+        download_report(report_url, FILE_PATH)
+    except ValueError as e:
+        print(e)
