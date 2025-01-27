@@ -1,12 +1,17 @@
+import os
+
 from bs4 import BeautifulSoup
 import requests
 import urllib3
 
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-DATE = "20250127"
+DATE = "20250125"
 REGION = "eur"
 BASE_URL = "https://www.atsenergo.ru/nreport"
+DIR_NAME = "reports"
+FILE_NAME = f"{DATE}.xlsx"
+FILE_PATH = f"{DIR_NAME}/{FILE_NAME}"
 
 
 def get_download_link(BASE_URL: str, DATE: str, REGION: str) -> str:
@@ -29,4 +34,22 @@ def get_download_link(BASE_URL: str, DATE: str, REGION: str) -> str:
 
     return links[0]
 
-result = get_download_link(BASE_URL, DATE, REGION)
+def download_report(url: str, save_path: str) -> None:
+    try:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        print(f"Скачивание отчёта с {url}...")
+        response = requests.get(url, verify=False, timeout=10)
+
+        if response.status_code == 200:
+            with open(save_path, "wb") as file:
+                file.write(response.content)
+            print(f"Отчёт успешно сохранён в {save_path}")
+        else:
+            print(f"Не удалось скачать файл, код ответа: {response.status_code}")
+
+    except requests.exceptions.RequestException as e:
+        print(f"Ошибка при скачивании файла: {e}")
+
+
+report_url = get_download_link(BASE_URL, DATE, REGION)
+download_report(report_url, FILE_PATH)
