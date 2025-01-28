@@ -80,15 +80,22 @@ async def download_report(session: aiohttp.ClientSession, url: str, save_path: s
             if response.status == 200:
                 async with aiofiles.open(save_path, "wb") as file:
                     await file.write(await response.read())
+                logger.info(f"Отчёт успешно сохранён в {save_path}")
             else:
                 logger.error(f"Не удалось скачать файл с {url}, код ответа: {response.status}")
     except Exception as e:
         logger.error(f"Ошибка при скачивании файла с {url}: {e}")
 
+async def get_one_report(session: aiohttp.ClientSession, date: str, file_path: str) -> None:
+    """
+    Получает ссылку на отчет и скачивает файл.
+    """
+    report_url = await get_download_link(session, date)
+    await download_report(session, report_url, file_path)
 
 async def download_reports_for_dates() -> list[str]:
     """
-    Асинхронно вызывает функции скачивания ссылок и отчётов.
+    Асинхронно скачивает отчеты для всех дат.
     """
     dates_to_download = generate_date_list(settings.START_DATE, settings.END_DATE)
     downloaded_files = []
@@ -98,7 +105,7 @@ async def download_reports_for_dates() -> list[str]:
         logger.info(f"Запуск скачивания отчётов для {len(dates_to_download)} дат.")
 
         for date in dates_to_download:
-            file_name = f"{date}.xlsx"
+            file_name = f"{date}.xls"
             file_path = Path(settings.DOWNLOAD_REPORTS_DIR) / file_name
 
             if file_path.exists():
@@ -106,10 +113,8 @@ async def download_reports_for_dates() -> list[str]:
                 downloaded_files.append(str(file_path))
                 continue
 
-            download_link = await get_download_link(session, date)
-            if download_link:
-                tasks.append(download_report(session, download_link, str(file_path)))
-                downloaded_files.append(str(file_path))
+            tasks.append(get_one_report(session, date, str(file_path)))
+            downloaded_files.append(str(file_path))
 
         await asyncio.gather(*tasks)
 
@@ -122,7 +127,7 @@ def extract_avg_price_from_report(file_path: str, date: str) -> dict[str, float 
     Извлекает среднюю цену из одного отчета.
     """
     try:
-        sheet_names = [str(hour) for hour in range(settings.HOURS_START, settings.HOURS_END)]
+        sheet_names = [str(hour) for hour in range(settings.HOURS_START, settings.HOURS_END+1)]
         all_sheets = pd.read_excel(file_path, sheet_name=sheet_names, skiprows=2)
         combined_data = pd.DataFrame()
 
