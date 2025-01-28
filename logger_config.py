@@ -12,7 +12,7 @@ def setup_logger(name: str, log_file: str = "reports.log", level: int = logging.
     )
 
     try:
-        file_handler = RotatingFileHandler(log_file, maxBytes=10 * 1024 * 1024)
+        file_handler = RotatingFileHandler(log_file, maxBytes=10 * 1024 * 1024, encoding="utf-8")
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
     except Exception as e:
