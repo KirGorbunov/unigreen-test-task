@@ -1,7 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta
 import logging
-import os
 from pathlib import Path
 
 import aiofiles
@@ -15,9 +14,10 @@ from settings import settings
 
 logger = setup_logger(__name__, "reports.log", level=logging.INFO)
 
+
 def create_directories() -> None:
-    os.makedirs(settings.DOWNLOAD_REPORTS_DIR, exist_ok=True)
-    os.makedirs(settings.AVERAGE_REPORTS_DIR, exist_ok=True)
+    Path(settings.DOWNLOAD_REPORTS_DIR).mkdir(parents=True, exist_ok=True)
+    Path(settings.AVERAGE_REPORTS_DIR).mkdir(parents=True, exist_ok=True)
     logger.info(f"Папки {settings.DOWNLOAD_REPORTS_DIR} и {settings.AVERAGE_REPORTS_DIR} "
                 f"успешно проверены или созданы.")
 
@@ -62,8 +62,8 @@ async def get_download_link(session: aiohttp.ClientSession, date: str) -> str | 
 
 async def download_report(session: aiohttp.ClientSession, url: str, save_path: str) -> None:
     try:
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
+        save_path = Path(save_path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
         async with session.get(url, ssl=False) as response:
             if response.status == 200:
                 async with aiofiles.open(save_path, "wb") as file:
@@ -72,6 +72,8 @@ async def download_report(session: aiohttp.ClientSession, url: str, save_path: s
                 logger.error(f"Не удалось скачать файл с {url}, код ответа: {response.status}")
     except Exception as e:
         logger.error(f"Ошибка при скачивании файла с {url}: {e}")
+
+
 
 async def download_reports_for_dates() -> list[str]:
     dates_to_download = generate_date_list(settings.START_DATE, settings.END_DATE)
@@ -83,22 +85,23 @@ async def download_reports_for_dates() -> list[str]:
 
         for date in dates_to_download:
             file_name = f"{date}.xlsx"
-            file_path = f"{settings.DOWNLOAD_REPORTS_DIR}/{file_name}"
+            file_path = Path(settings.DOWNLOAD_REPORTS_DIR) / file_name
 
-            if os.path.exists(file_path):
+            if file_path.exists():
                 logger.info(f"Файл {file_name} уже существует, пропускаем скачивание.")
-                downloaded_files.append(file_path)
+                downloaded_files.append(str(file_path))
                 continue
 
             download_link = await get_download_link(session, date)
             if download_link:
-                tasks.append(download_report(session, download_link, file_path))
-                downloaded_files.append(file_path)
+                tasks.append(download_report(session, download_link, str(file_path)))
+                downloaded_files.append(str(file_path))
 
         await asyncio.gather(*tasks)
 
     logger.info(f"Скачивание завершено, всего файлов: {len(downloaded_files)}.")
     return downloaded_files
+
 
 def extract_avg_price_from_report(file_path: str, date: str) -> dict[str, float | None]:
     try:
@@ -136,9 +139,9 @@ def generating_reports(downloaded_files: list[str]) -> None:
 
     results_df["Дата"] = pd.to_datetime(results_df["Дата"], format="%d-%m-%Y").dt.strftime("%d.%m.%Y")
 
-    csv_path = f"{settings.AVERAGE_REPORTS_DIR}/{settings.OUTPUT_FILE_CSV}"
-    xls_path = f"{settings.AVERAGE_REPORTS_DIR}/{settings.OUTPUT_FILE_XLS}"
-    xml_path = f"{settings.AVERAGE_REPORTS_DIR}/{settings.OUTPUT_FILE_XML}"
+    csv_path = Path(settings.AVERAGE_REPORTS_DIR) / settings.OUTPUT_FILE_CSV
+    xls_path = Path(settings.AVERAGE_REPORTS_DIR) / settings.OUTPUT_FILE_XLS
+    xml_path = Path(settings.AVERAGE_REPORTS_DIR) / settings.OUTPUT_FILE_XML
 
     results_df.to_csv(csv_path, index=False, encoding="utf-8")
     results_df.to_excel(xls_path, index=False, engine="openpyxl")
