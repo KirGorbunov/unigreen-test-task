@@ -14,10 +14,6 @@ from logger_config import setup_logger
 logger = setup_logger(__name__, "reports.log", level=logging.INFO)
 
 
-# TODO Возможно!, заменить BeautifulSoup на lxml
-# TODO Возможно!, добавить проверку, нет ли файла уже в папке и не скачивать.
-
-
 START_DATE = "20241009"
 END_DATE = "20241010"
 REGION = "eur"
@@ -46,11 +42,12 @@ def generate_date_range(start_date: str, end_date: str) -> list[str]:
     return dates
 
 
-async def get_download_link(session: aiohttp.ClientSession, BASE_URL: str, DATE: str, REGION: str) -> str:
+async def get_download_link(session: aiohttp.ClientSession, BASE_URL: str, DATE: str, REGION: str) -> str | None:
     url = f"{BASE_URL}?rname=big_nodes_prices_pub&region={REGION}&rdate={DATE}"
     async with session.get(url, ssl=False) as response:
         if response.status != 200:
-            raise ValueError(f"Не удалось загрузить страницу: {url}, код ответа: {response.status}")
+            logger.error(f"Не удалось загрузить страницу: {url}, код ответа: {response.status}")
+            return None
 
         html_content = await response.text()
         soup = BeautifulSoup(html_content, "html.parser")
@@ -63,9 +60,11 @@ async def get_download_link(session: aiohttp.ClientSession, BASE_URL: str, DATE:
                 links.append(full_link)
 
         if len(links) == 0:
-            raise ValueError(f"Ссылки не найдены для даты {DATE}.")
+            logger.error(f"Ссылки не найдены для даты {DATE}.")
+            return None
         elif len(links) > 1:
-            raise ValueError(f"Найдено несколько ссылок для даты {DATE}. Ожидалась единственная ссылка.")
+            logger.error(f"Найдено несколько ссылок для даты {DATE}. Ожидалась единственная ссылка.")
+            return None
 
         return links[0]
 
@@ -73,22 +72,15 @@ async def get_download_link(session: aiohttp.ClientSession, BASE_URL: str, DATE:
 async def download_report(session: aiohttp.ClientSession, url: str, save_path: str) -> None:
     try:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        logger.info(f"Скачивание отчёта с {url}...")
 
         async with session.get(url, ssl=False) as response:
             if response.status == 200:
                 with open(save_path, "wb") as file:
                     file.write(await response.read())
-                logger.info(f"Отчёт успешно сохранён в {save_path}")
             else:
-                logger.error(f"Не удалось скачать файл, код ответа: {response.status}")
+                logger.error(f"Не удалось скачать файл с {url}, код ответа: {response.status}")
     except Exception as e:
-        logger.error(f"Ошибка при скачивании файла: {e}")
-
-
-async def get_one_report(session: aiohttp.ClientSession, BASE_URL: str, date: str, REGION: str, FILE_PATH: str) -> None:
-    report_url = await get_download_link(session, BASE_URL, date, REGION)
-    await download_report(session, report_url, FILE_PATH)
+        logger.error(f"Ошибка при скачивании файла с {url}: {e}")
 
 
 async def download_reports_for_dates() -> list[str]:
@@ -97,19 +89,25 @@ async def download_reports_for_dates() -> list[str]:
 
     async with aiohttp.ClientSession() as session:
         tasks = []
+        logger.info(f"Запуск скачивания отчётов для {len(dates_to_download)} дат.")
 
         for date in dates_to_download:
             FILE_NAME = f"{date}.xlsx"
             FILE_PATH = f"{DIR_NAME}/{FILE_NAME}"
 
-            try:
-                tasks.append(get_one_report(session, BASE_URL, date, REGION, FILE_PATH))
+            if os.path.exists(FILE_PATH):
+                logger.info(f"Файл {FILE_NAME} уже существует, пропускаем скачивание.")
                 downloaded_files.append(FILE_PATH)
-            except ValueError as e:
-                print(e)
+                continue
+
+            tasks.append(download_report(session, await get_download_link(session, BASE_URL, date, REGION), FILE_PATH))
+            downloaded_files.append(FILE_PATH)
 
         await asyncio.gather(*tasks)
+
+    logger.info(f"Скачивание завершено, всего файлов: {len(downloaded_files)}.")
     return downloaded_files
+
 
 def extract_avg_price_from_report(file_path: str, date: str) -> dict[str, float | None]:
     try:
@@ -124,7 +122,6 @@ def extract_avg_price_from_report(file_path: str, date: str) -> dict[str, float 
             except Exception as e:
                 logger.error(f"Ошибка обработки листа {sheet_name} в файле {file_path}: {e}")
 
-        # Если данные есть, считаем среднее
         if not combined_data.empty:
             avg_price = combined_data[PRICE_FOR_CALCULATED].mean()
             return {"Дата": date, f"Среднее значение по параметру {PRICE_FOR_CALCULATED}": avg_price}
@@ -153,9 +150,12 @@ def generating_reports(downloaded_files: list[str]) -> None:
     results_df.to_excel(OUTPUT_FILE_XLS, index=False, engine="openpyxl")
     results_df.columns = results_df.columns.str.replace(r"[^\w]", "_", regex=True)
     results_df.to_xml(OUTPUT_FILE_XML, index=False, encoding="utf-8")
-    logger.info("Результаты сохранены в файлы")
+    logger.info("Результаты успешно сохранены в файлы: "
+                f"{OUTPUT_FILE_CSV}, {OUTPUT_FILE_XLS}, {OUTPUT_FILE_XML}")
 
 
 if __name__ == "__main__":
+    logger.info("Начало выполнения скрипта.")
     downloaded_files = asyncio.run(download_reports_for_dates())
     generating_reports(downloaded_files)
+    logger.info("Работа скрипта завершена.")
