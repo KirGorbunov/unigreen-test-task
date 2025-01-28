@@ -14,12 +14,13 @@ from settings import settings
 
 logger = setup_logger(__name__, "reports.log", level=logging.INFO)
 
-def ensure_directories_exist():
+def create_directories() -> None:
     os.makedirs(settings.DOWNLOAD_REPORTS_DIR, exist_ok=True)
     os.makedirs(settings.AVERAGE_REPORTS_DIR, exist_ok=True)
-    logger.info(f"Папки {settings.DOWNLOAD_REPORTS_DIR} и {settings.AVERAGE_REPORTS_DIR} успешно проверены или созданы.")
+    logger.info(f"Папки {settings.DOWNLOAD_REPORTS_DIR} и {settings.AVERAGE_REPORTS_DIR} "
+                f"успешно проверены или созданы.")
 
-def generate_date_range(start_date: str, end_date: str) -> list[str]:
+def generate_date_list(start_date: str, end_date: str) -> list[str]:
     start = datetime.strptime(start_date, "%d-%m-%Y")
     end = datetime.strptime(end_date, "%d-%m-%Y")
     delta = timedelta(days=1)
@@ -72,7 +73,7 @@ async def download_report(session: aiohttp.ClientSession, url: str, save_path: s
         logger.error(f"Ошибка при скачивании файла с {url}: {e}")
 
 async def download_reports_for_dates() -> list[str]:
-    dates_to_download = generate_date_range(settings.START_DATE, settings.END_DATE)
+    dates_to_download = generate_date_list(settings.START_DATE, settings.END_DATE)
     downloaded_files = []
 
     async with aiohttp.ClientSession() as session:
@@ -146,7 +147,7 @@ def generating_reports(downloaded_files: list[str]) -> None:
 
 if __name__ == "__main__":
     logger.info("Начало выполнения скрипта.")
-    ensure_directories_exist()
+    create_directories()
     downloaded_files = asyncio.run(download_reports_for_dates())
     generating_reports(downloaded_files)
     logger.info("Работа скрипта завершена.")

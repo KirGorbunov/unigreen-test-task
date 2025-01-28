@@ -1,4 +1,4 @@
-reports/
+average_prices_reports/
 download_reports/
 *.csv
 *.xls
