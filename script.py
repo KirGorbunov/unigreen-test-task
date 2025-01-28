@@ -185,6 +185,7 @@ def generating_reports(downloaded_files: list[str]) -> None:
 
     results_df.to_csv(csv_path, index=False, encoding="utf-8")
     results_df.to_excel(xls_path, index=False, engine="openpyxl")
+    # В XML не должно быть пробелов и других знаков, поэтому меняем их на нижнее подчеркивание:
     results_df.columns = results_df.columns.str.replace(r"[^\w]", "_", regex=True)
     results_df.to_xml(xml_path, index=False, encoding="utf-8")
     logger.info(f"Результаты успешно сохранены в файлы: {csv_path}, {xls_path}, {xml_path}")
