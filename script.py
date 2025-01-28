@@ -4,6 +4,7 @@ import logging
 import os
 from pathlib import Path
 
+import aiofiles
 import aiohttp
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -65,8 +66,8 @@ async def download_report(session: aiohttp.ClientSession, url: str, save_path: s
 
         async with session.get(url, ssl=False) as response:
             if response.status == 200:
-                with open(save_path, "wb") as file:
-                    file.write(await response.read())
+                async with aiofiles.open(save_path, "wb") as file:
+                    await file.write(await response.read())
             else:
                 logger.error(f"Не удалось скачать файл с {url}, код ответа: {response.status}")
     except Exception as e:
