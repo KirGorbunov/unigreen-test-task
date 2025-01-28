@@ -16,12 +16,18 @@ logger = setup_logger(__name__, "reports.log", level=logging.INFO)
 
 
 def create_directories() -> None:
+    """
+    Создание директорий для хранения отчетов.
+    """
     Path(settings.DOWNLOAD_REPORTS_DIR).mkdir(parents=True, exist_ok=True)
     Path(settings.AVERAGE_REPORTS_DIR).mkdir(parents=True, exist_ok=True)
     logger.info(f"Папки {settings.DOWNLOAD_REPORTS_DIR} и {settings.AVERAGE_REPORTS_DIR} "
                 f"успешно проверены или созданы.")
 
 def generate_date_list(start_date: str, end_date: str) -> list[str]:
+    """
+    Генерирует список дат от start_date до end_date в формате день-месяц-год.
+    """
     start = datetime.strptime(start_date, "%d-%m-%Y")
     end = datetime.strptime(end_date, "%d-%m-%Y")
     delta = timedelta(days=1)
@@ -34,6 +40,9 @@ def generate_date_list(start_date: str, end_date: str) -> list[str]:
     return dates
 
 async def get_download_link(session: aiohttp.ClientSession, date: str) -> str | None:
+    """
+    Получает ссылку для скачивания отчета по указанной дате.
+    """
     date = datetime.strptime(date, "%d-%m-%Y").strftime("%Y%m%d")
     url = f"{settings.BASE_URL}?rname=big_nodes_prices_pub&region={settings.REGION}&rdate={date}"
     async with session.get(url, ssl=False) as response:
@@ -61,6 +70,9 @@ async def get_download_link(session: aiohttp.ClientSession, date: str) -> str | 
         return links[0]
 
 async def download_report(session: aiohttp.ClientSession, url: str, save_path: str) -> None:
+    """
+    Скачивает отчет по ссылке.
+    """
     try:
         save_path = Path(save_path)
         save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -74,8 +86,10 @@ async def download_report(session: aiohttp.ClientSession, url: str, save_path: s
         logger.error(f"Ошибка при скачивании файла с {url}: {e}")
 
 
-
 async def download_reports_for_dates() -> list[str]:
+    """
+    Асинхронно вызывает функции скачивания ссылок и отчётов.
+    """
     dates_to_download = generate_date_list(settings.START_DATE, settings.END_DATE)
     downloaded_files = []
 
@@ -104,6 +118,9 @@ async def download_reports_for_dates() -> list[str]:
 
 
 def extract_avg_price_from_report(file_path: str, date: str) -> dict[str, float | None]:
+    """
+    Извлекает среднюю цену из одного отчета.
+    """
     try:
         sheet_names = [str(hour) for hour in range(settings.HOURS_START, settings.HOURS_END)]
         all_sheets = pd.read_excel(file_path, sheet_name=sheet_names, skiprows=2)
@@ -127,6 +144,9 @@ def extract_avg_price_from_report(file_path: str, date: str) -> dict[str, float 
         return {"Дата": date, f"Среднее значение по параметру {settings.PRICE_FOR_CALCULATED}": None}
 
 def generating_reports(downloaded_files: list[str]) -> None:
+    """
+    Генерирует отчеты на основе скачанных файлов.
+    """
     results = []
 
     for file in downloaded_files:
