@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     START_DATE: str
     END_DATE: str
-    REGION: str
+    PRICE_ZONE: str
     BASE_URL: str
     DOWNLOAD_REPORTS_DIR: str
     AVERAGE_REPORTS_DIR: str

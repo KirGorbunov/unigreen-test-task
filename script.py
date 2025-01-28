@@ -24,6 +24,7 @@ def create_directories() -> None:
     logger.info(f"Папки {settings.DOWNLOAD_REPORTS_DIR} и {settings.AVERAGE_REPORTS_DIR} "
                 f"успешно проверены или созданы.")
 
+
 def generate_date_list(start_date: str, end_date: str) -> list[str]:
     """
     Генерирует список дат от start_date до end_date в формате день-месяц-год.
@@ -39,12 +40,20 @@ def generate_date_list(start_date: str, end_date: str) -> list[str]:
 
     return dates
 
+
 async def get_download_link(session: aiohttp.ClientSession, date: str) -> str | None:
     """
     Получает ссылку для скачивания отчета по указанной дате.
     """
     date = datetime.strptime(date, "%d-%m-%Y").strftime("%Y%m%d")
-    url = f"{settings.BASE_URL}?rname=big_nodes_prices_pub&region={settings.REGION}&rdate={date}"
+    # На сайте АТС Сибирь лежит вместе с Дальним Востоком
+    # https://www.atsenergo.ru/nreport?rname=big_nodes_prices_pub&region=sib&rdate=20250105
+    # Поэтому регион для ДВ для этой страницы будет Сибирь:
+    if settings.PRICE_ZONE == 'dv':
+        ZONE = 'sib'
+    else:
+        ZONE = settings.PRICE_ZONE
+    url = f"{settings.BASE_URL}?rname=big_nodes_prices_pub&region={ZONE}&rdate={date}"
     async with session.get(url, ssl=False) as response:
         if response.status != 200:
             logger.error(f"Не удалось загрузить страницу: {url}, код ответа: {response.status}")
@@ -56,7 +65,9 @@ async def get_download_link(session: aiohttp.ClientSession, date: str) -> str | 
 
         for a_tag in soup.find_all("a", href=True):
             href = a_tag["href"]
-            if "fid=" in href and "zip" not in href:
+            # Чтобы правильно забрать ДВ, проверяем что в названии файла на сайте есть dv:
+            file_name = a_tag.get_text(strip=True)
+            if "fid=" in href and "zip" not in href and settings.PRICE_ZONE in file_name:
                 full_link = settings.BASE_URL + href
                 links.append(full_link)
 
@@ -68,6 +79,7 @@ async def get_download_link(session: aiohttp.ClientSession, date: str) -> str | 
             return None
 
         return links[0]
+
 
 async def download_report(session: aiohttp.ClientSession, url: str, save_path: str) -> None:
     """
@@ -86,12 +98,14 @@ async def download_report(session: aiohttp.ClientSession, url: str, save_path: s
     except Exception as e:
         logger.error(f"Ошибка при скачивании файла с {url}: {e}")
 
+
 async def get_one_report(session: aiohttp.ClientSession, date: str, file_path: str) -> None:
     """
     Получает ссылку на отчет и скачивает файл.
     """
     report_url = await get_download_link(session, date)
     await download_report(session, report_url, file_path)
+
 
 async def download_reports_for_dates() -> list[str]:
     """
@@ -105,7 +119,7 @@ async def download_reports_for_dates() -> list[str]:
         logger.info(f"Запуск скачивания отчётов для {len(dates_to_download)} дат.")
 
         for date in dates_to_download:
-            file_name = f"{date}.xls"
+            file_name = f"{settings.PRICE_ZONE}_{date}.xls"
             file_path = Path(settings.DOWNLOAD_REPORTS_DIR) / file_name
 
             if file_path.exists():
@@ -148,15 +162,16 @@ def extract_avg_price_from_report(file_path: str, date: str) -> dict[str, float 
         logger.error(f"Ошибка обработки файла {file_path}: {e}")
         return {"Дата": date, f"Среднее значение по параметру {settings.PRICE_FOR_CALCULATED}": None}
 
+
 def generating_reports(downloaded_files: list[str]) -> None:
     """
-    Генерирует отчеты на основе скачанных файлов.
+    Генерирует отчеты на основе средних цен.
     """
     results = []
 
     for file in downloaded_files:
         file_path = Path(file)
-        date = file_path.stem
+        date = file_path.stem.split('_')[1]
         report_result = extract_avg_price_from_report(file, date)
         results.append(report_result)
 
@@ -173,6 +188,7 @@ def generating_reports(downloaded_files: list[str]) -> None:
     results_df.columns = results_df.columns.str.replace(r"[^\w]", "_", regex=True)
     results_df.to_xml(xml_path, index=False, encoding="utf-8")
     logger.info(f"Результаты успешно сохранены в файлы: {csv_path}, {xls_path}, {xml_path}")
+
 
 if __name__ == "__main__":
     logger.info("Начало выполнения скрипта.")
