@@ -49,8 +49,8 @@ async def get_download_link(session: aiohttp.ClientSession, date: str) -> str | 
     # На сайте АТС Сибирь лежит вместе с Дальним Востоком
     # https://www.atsenergo.ru/nreport?rname=big_nodes_prices_pub&region=sib&rdate=20250105
     # Поэтому регион для ДВ для этой страницы будет Сибирь:
-    if settings.PRICE_ZONE == 'dv':
-        ZONE = 'sib'
+    if settings.PRICE_ZONE == "dv":
+        ZONE = "sib"
     else:
         ZONE = settings.PRICE_ZONE
     url = f"{settings.BASE_URL}?rname=big_nodes_prices_pub&region={ZONE}&rdate={date}"
@@ -171,7 +171,7 @@ def generating_reports(downloaded_files: list[str]) -> None:
 
     for file in downloaded_files:
         file_path = Path(file)
-        date = file_path.stem.split('_')[1]
+        date = file_path.stem.split("_")[1]
         report_result = extract_avg_price_from_report(file, date)
         results.append(report_result)
 
