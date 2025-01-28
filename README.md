@@ -17,7 +17,7 @@
 
 1. **Клонируйте репозиторий и перейдите в папку со скриптом:**
     ```bash
-    git git@github.com:KirGorbunov/unigreen-test-task.git
+    git clone git@github.com:KirGorbunov/unigreen-test-task.git
     cd unigreen-test-task
     ```
 
