@@ -14,6 +14,11 @@ from settings import settings
 
 logger = setup_logger(__name__, "reports.log", level=logging.INFO)
 
+def ensure_directories_exist():
+    os.makedirs(settings.DOWNLOAD_REPORTS_DIR, exist_ok=True)
+    os.makedirs(settings.AVERAGE_REPORTS_DIR, exist_ok=True)
+    logger.info(f"Папки {settings.DOWNLOAD_REPORTS_DIR} и {settings.AVERAGE_REPORTS_DIR} успешно проверены или созданы.")
+
 def generate_date_range(start_date: str, end_date: str) -> list[str]:
     start = datetime.strptime(start_date, "%d-%m-%Y")
     end = datetime.strptime(end_date, "%d-%m-%Y")
@@ -76,7 +81,7 @@ async def download_reports_for_dates() -> list[str]:
 
         for date in dates_to_download:
             file_name = f"{date}.xlsx"
-            file_path = f"{settings.DIR_NAME}/{file_name}"
+            file_path = f"{settings.DOWNLOAD_REPORTS_DIR}/{file_name}"
 
             if os.path.exists(file_path):
                 logger.info(f"Файл {file_name} уже существует, пропускаем скачивание.")
@@ -127,17 +132,21 @@ def generating_reports(downloaded_files: list[str]) -> None:
 
     results_df = pd.DataFrame(results)
 
-    results_df.to_csv(settings.OUTPUT_FILE_CSV, index=False, encoding="utf-8")
-    results_df.to_excel(settings.OUTPUT_FILE_XLS, index=False, engine="openpyxl")
+    results_df["Дата"] = pd.to_datetime(results_df["Дата"], format="%d-%m-%Y").dt.strftime("%d.%m.%Y")
 
-    # Формат XML не поддерживает пробелы и некоторые другие символы -> заменяем их на нижнее подчеркивание:
+    csv_path = f"{settings.AVERAGE_REPORTS_DIR}/{settings.OUTPUT_FILE_CSV}"
+    xls_path = f"{settings.AVERAGE_REPORTS_DIR}/{settings.OUTPUT_FILE_XLS}"
+    xml_path = f"{settings.AVERAGE_REPORTS_DIR}/{settings.OUTPUT_FILE_XML}"
+
+    results_df.to_csv(csv_path, index=False, encoding="utf-8")
+    results_df.to_excel(xls_path, index=False, engine="openpyxl")
     results_df.columns = results_df.columns.str.replace(r"[^\w]", "_", regex=True)
-    results_df.to_xml(settings.OUTPUT_FILE_XML, index=False, encoding="utf-8")
-    logger.info(f"Результаты успешно сохранены в файлы: "
-                f"{settings.OUTPUT_FILE_CSV}, {settings.OUTPUT_FILE_XLS}, {settings.OUTPUT_FILE_XML}")
+    results_df.to_xml(xml_path, index=False, encoding="utf-8")
+    logger.info(f"Результаты успешно сохранены в файлы: {csv_path}, {xls_path}, {xml_path}")
 
 if __name__ == "__main__":
     logger.info("Начало выполнения скрипта.")
+    ensure_directories_exist()
     downloaded_files = asyncio.run(download_reports_for_dates())
     generating_reports(downloaded_files)
     logger.info("Работа скрипта завершена.")

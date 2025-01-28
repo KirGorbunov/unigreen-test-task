@@ -1,4 +1,5 @@
 reports/
+download_reports/
 *.csv
 *.xls
 *.xml
