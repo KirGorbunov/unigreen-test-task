@@ -15,18 +15,19 @@ from settings import settings
 logger = setup_logger(__name__, "reports.log", level=logging.INFO)
 
 def generate_date_range(start_date: str, end_date: str) -> list[str]:
-    start = datetime.strptime(start_date, "%Y%m%d")
-    end = datetime.strptime(end_date, "%Y%m%d")
+    start = datetime.strptime(start_date, "%d-%m-%Y")
+    end = datetime.strptime(end_date, "%d-%m-%Y")
     delta = timedelta(days=1)
     dates = []
 
     while start <= end:
-        dates.append(start.strftime("%Y%m%d"))
+        dates.append(start.strftime("%d-%m-%Y"))
         start += delta
 
     return dates
 
 async def get_download_link(session: aiohttp.ClientSession, date: str) -> str | None:
+    date = datetime.strptime(date, "%d-%m-%Y").strftime("%Y%m%d")
     url = f"{settings.BASE_URL}?rname=big_nodes_prices_pub&region={settings.REGION}&rdate={date}"
     async with session.get(url, ssl=False) as response:
         if response.status != 200:
@@ -126,10 +127,9 @@ def generating_reports(downloaded_files: list[str]) -> None:
 
     results_df = pd.DataFrame(results)
 
-    results_df["Дата"] = pd.to_datetime(results_df["Дата"], format="%Y%m%d").dt.strftime("%d.%m.%Y")
-
     results_df.to_csv(settings.OUTPUT_FILE_CSV, index=False, encoding="utf-8")
     results_df.to_excel(settings.OUTPUT_FILE_XLS, index=False, engine="openpyxl")
+
     # Формат XML не поддерживает пробелы и некоторые другие символы -> заменяем их на нижнее подчеркивание:
     results_df.columns = results_df.columns.str.replace(r"[^\w]", "_", regex=True)
     results_df.to_xml(settings.OUTPUT_FILE_XML, index=False, encoding="utf-8")

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,15 +16,15 @@ class Settings(BaseSettings):
 
     @property
     def OUTPUT_FILE_CSV(self) -> str:
-        return f"average_prices_{self.START_DATE}-{self.END_DATE}.csv"
+        return f"average_prices_{self.START_DATE}_{self.END_DATE}.csv"
 
     @property
     def OUTPUT_FILE_XLS(self) -> str:
-        return f"average_prices_{self.START_DATE}-{self.END_DATE}.xls"
+        return f"average_prices_{self.START_DATE}_{self.END_DATE}.xls"
 
     @property
     def OUTPUT_FILE_XML(self) -> str:
-        return f"average_prices_{self.START_DATE}-{self.END_DATE}.xml"
+        return f"average_prices_{self.START_DATE}_{self.END_DATE}.xml"
 
     model_config = SettingsConfigDict(env_file=".env")
 
